@@ -30,11 +30,11 @@ def correct_text_EIS(text_header):
     
     Kristian B. Knudsen (kknu@berkeley.edu || kristianbknudsen@gmail.com)
     '''
-    if text_header == 'freq/Hz' or text_header == '  Freq(Hz)':
+    if text_header == 'freq/Hz' or text_header == '  Freq(Hz)' or text_header == 'Freq(Hz)':
         return 'f'
-    elif text_header == 'Re(Z)/Ohm' or text_header == "Z'(a)":
+    elif text_header == 'Re(Z)/Ohm' or text_header == "Z'(a)" or text_header == "Z' (a)":
         return 're'
-    elif text_header == '-Im(Z)/Ohm' or text_header == "Z''(b)":
+    elif text_header == '-Im(Z)/Ohm' or text_header == "Z''(b)" or text_header == "Z'' (a)":
         return 'im'
 #    elif text_header == "Z''(b)":
 #        return 'im_neg'
@@ -86,6 +86,27 @@ def correct_text_EIS(text_header):
         return 'Ns_changes'
     else:
         return text_header
+
+def extract_arkeo(path, EIS_name):
+    '''
+    Extracting data files from Akreo's '.txt' format, columns are renamed following correct_text_EIS()
+    
+    Bas de Jong
+    '''
+    dummy_col = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I','J','K','L','M','N','O','P']
+    init = pd.read_csv(path+EIS_name, encoding='latin1', sep='\t', names=dummy_col)
+    ZC = pd.Index(init.A)
+    header_loc = ZC.get_loc('Freq(Hz)')
+    
+    header_names_raw = pd.read_csv(path+EIS_name, sep='\t', skiprows=header_loc, encoding='latin1') #locates number of skiplines
+    header_names = []
+    for j in range(len(header_names_raw.columns)):
+        header_names.append(correct_text_EIS(header_names_raw.columns[j])) #reads coloumn text
+    data = pd.read_csv(path+EIS_name, sep='\t', skiprows=header_loc+1, names=header_names, encoding='latin1')
+    data.update({'im': -data.im})
+    data = data.assign(cycle_number = 1.0)
+    return data
+    
     
 def extract_mpt(path, EIS_name):
     '''
@@ -131,7 +152,7 @@ def extract_solar(path, EIS_name):
     dummy_col = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I','J','K','L','M','N','O','P']
     init = pd.read_csv(path+EIS_name, encoding='latin1', sep='\t', names=dummy_col)
     ZC = pd.Index(init.A)
-    header_loc = ZC.get_loc('  Freq(Hz)')
+    header_loc = ZC.get_loc('Freq(Hz)')
     
     header_names_raw = pd.read_csv(path+EIS_name, sep='\t', skiprows=header_loc, encoding='latin1') #locates number of skiplines
     header_names = []

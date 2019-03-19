@@ -34,7 +34,7 @@ F = codata.physical_constants['Faraday constant'][0]
 Rg = codata.physical_constants['molar gas constant'][0]
 
 ### Importing PyEIS add-ons
-from .PyEIS_Data_extraction import *
+from .PyEIS_Data_extraction import extract_arkeo
 from .PyEIS_Lin_KK import *
 from .PyEIS_Advanced_tools import *
 
@@ -230,6 +230,51 @@ def cir_RsRQRQ(w, Rs, R='none', Q='none', n='none', fs='none', R2='none', Q2='no
         n2 = np.log(Q2*R2)/np.log(1/(2*np.pi*fs2))
         
     return Rs + (R/(1+R*Q*(w*1j)**n)) + (R2/(1+R2*Q2*(w*1j)**n2))
+	
+def cir_RsRQRQRQ(w, Rs, R='none', Q='none', n='none', fs='none', R2='none', Q2='none', n2='none', fs2='none', R3='none', Q3='none', n3='none', fs3='none'):
+    '''
+    Simulation Function: -Rs-RQ-RQ-RQ-
+    Return the impedance of an Rs-RQ-RQ-RQ- circuit. See details for RQ under cir_RQ_fit()
+    
+    Kristian B. Knudsen (kknu@berkeley.edu || kristianbknudsen@gmail.com)
+    
+    Inputs
+    ----------
+    w = Angular frequency [1/s]
+    Rs = Series Resistance [Ohm]
+    
+    R = Resistance [Ohm]
+    Q = Constant phase element [s^n/ohm]
+    n = Constant phase element exponent [-]
+    fs = Summit frequency of RQ circuit [Hz]
+
+    R2 = Resistance [Ohm]
+    Q2 = Constant phase element [s^n/ohm]
+    n2 = Constant phase element exponent [-]
+    fs2 = Summit frequency of RQ circuit [Hz]
+    '''
+    if R == 'none':
+        R = (1/(Q*(2*np.pi*fs)**n))
+    elif Q == 'none':
+        Q = (1/(R*(2*np.pi*fs)**n))
+    elif n == 'none':
+        n = np.log(Q*R)/np.log(1/(2*np.pi*fs))
+
+    if R2 == 'none':
+        R2 = (1/(Q2*(2*np.pi*fs2)**n2))
+    elif Q2 == 'none':
+        Q2 = (1/(R2*(2*np.pi*fs2)**n2))
+    elif n2 == 'none':
+        n2 = np.log(Q2*R2)/np.log(1/(2*np.pi*fs2))
+	
+    if R3 == 'none':
+        R3 = (1/(Q3*(2*np.pi*fs3)**n3))
+    elif Q3 == 'none':
+        Q3 = (1/(R3*(2*np.pi*fs3)**n3))
+    elif n3 == 'none':
+        n3 = np.log(Q3*R3)/np.log(1/(2*np.pi*fs3))     
+		
+    return Rs + (R/(1+R*Q*(w*1j)**n)) + (R2/(1+R2*Q2*(w*1j)**n2)) + (R3/(1+R3*Q3*(w*1j)**n3))
 
 def cir_RsRQQ(w, Rs, Q, n, R1='none', Q1='none', n1='none', fs1='none'):
     '''
@@ -1247,6 +1292,76 @@ def cir_RsRQRQ_fit(params, w):
 
     Rs = params['Rs']
     return Rs + (R/(1+R*Q*(w*1j)**n)) + (R2/(1+R2*Q2*(w*1j)**n2))
+	
+def cir_RsRQRQRQ_fit(params, w):
+    '''
+    Fit Function: -Rs-RQ-RQ-RQ-
+    Return the impedance of an Rs-RQ-RQ-RQ circuit. See details under cir_RsRQRQRQ()
+    
+    Kristian B. Knudsen (kknu@berkeley.edu / kristianbknudsen@gmail.com)
+    '''
+    if str(params.keys())[10:].find("'R'") == -1: #if R == 'none':
+        Q = params['Q']
+        n = params['n']
+        fs = params['fs']
+        R = (1/(Q*(2*np.pi*fs)**n))
+    if str(params.keys())[10:].find("'Q'") == -1: #elif Q == 'none':
+        R = params['R']
+        n = params['n']
+        fs = params['fs']
+        Q = (1/(R*(2*np.pi*fs)**n))
+    if str(params.keys())[10:].find("'n'") == -1: #elif n == 'none':
+        R = params['R']
+        Q = params['Q']
+        fs = params['fs']
+        n = np.log(Q*R)/np.log(1/(2*np.pi*fs))
+    if str(params.keys())[10:].find("'fs'") == -1: #elif fs == 'none':
+        R = params['R']
+        Q = params['Q']
+        n = params['n']
+
+    if str(params.keys())[10:].find("'R2'") == -1: #if R == 'none':
+        Q2 = params['Q2']
+        n2 = params['n2']
+        fs2 = params['fs2']
+        R2 = (1/(Q2*(2*np.pi*fs2)**n2))
+    if str(params.keys())[10:].find("'Q2'") == -1: #elif Q == 'none':
+        R2 = params['R2']
+        n2 = params['n2']
+        fs2 = params['fs2']
+        Q2 = (1/(R2*(2*np.pi*fs2)**n2))
+    if str(params.keys())[10:].find("'n2'") == -1: #elif n == 'none':
+        R2 = params['R2']
+        Q2 = params['Q2']
+        fs2 = params['fs2']
+        n2 = np.log(Q2*R2)/np.log(1/(2*np.pi*fs2))
+    if str(params.keys())[10:].find("'fs2'") == -1: #elif fs == 'none':
+        R2 = params['R2']
+        Q2 = params['Q2']
+        n2 = params['n2']
+		
+    if str(params.keys())[10:].find("'R3'") == -1: #if R == 'none':
+        Q3 = params['Q3']
+        n3 = params['n3']
+        fs3 = params['fs3']
+        R3 = (1/(Q3*(2*np.pi*fs3)**n3))
+    if str(params.keys())[10:].find("'Q3'") == -1: #elif Q == 'none':
+        R3 = params['R3']
+        n3 = params['n3']
+        fs3 = params['fs3']
+        Q3 = (1/(R3*(2*np.pi*fs3)**n3))
+    if str(params.keys())[10:].find("'n3'") == -1: #elif n == 'none':
+        R3 = params['R3']
+        Q3 = params['Q3']
+        fs3 = params['fs3']
+        n3 = np.log(Q3*R3)/np.log(1/(2*np.pi*fs3))
+    if str(params.keys())[10:].find("'fs3'") == -1: #elif fs == 'none':
+        R3 = params['R3']
+        Q3 = params['Q3']
+        n3 = params['n3']
+
+    Rs = params['Rs']
+    return Rs + (R/(1+R*Q*(w*1j)**n)) + (R2/(1+R2*Q2*(w*1j)**n2)) + (R3/(1+R3*Q3*(w*1j)**n3))
 
 def cir_Randles_simplified_Fit(params, w):
     '''
@@ -2230,20 +2345,21 @@ class EIS_exp:
     def __init__(self, path, data, cycle='off', mask=['none','none']):
         self.df_raw0 = []
         self.cycleno = []
-        for j in range(len(data)):
-            if data[j].find(".mpt") != -1: #file is a .mpt file
-                self.df_raw0.append(extract_mpt(path=path, EIS_name=data[j])) #reads all datafiles
-            elif data[j].find(".DTA") != -1: #file is a .dta file
-                self.df_raw0.append(extract_dta(path=path, EIS_name=data[j])) #reads all datafiles
-            elif data[j].find(".z") != -1: #file is a .z file
-                self.df_raw0.append(extract_solar(path=path, EIS_name=data[j])) #reads all datafiles
-            else:
-                print('Data file(s) could not be identified')
+        self.df_raw0.append(extract_arkeo(path=path, EIS_name=data)) #reads all datafiles
+#        for j in range(len(data)):
+#            if data[j].find(".mpt") != -1: #file is a .mpt file
+#                self.df_raw0.append(extract_mpt(path=path, EIS_name=data[j])) #reads all datafiles
+#            elif data[j].find(".DTA") != -1: #file is a .dta file
+#                self.df_raw0.append(extract_dta(path=path, EIS_name=data[j])) #reads all datafiles
+#            elif data[j].find(".z") != -1: #file is a .z file
+#                self.df_raw0.append(extract_solar(path=path, EIS_name=data[j])) #reads all datafiles
+#            else:
+#                print('Data file(s) could not be identified')
 
-            self.cycleno.append(self.df_raw0[j].cycle_number)
-            if np.min(self.cycleno[j]) <= np.max(self.cycleno[j-1]):
-                if j > 0: #corrects cycle_number except for the first data file
-                    self.df_raw0[j].update({'cycle_number': self.cycleno[j]+np.max(self.cycleno[j-1])}) #corrects cycle number
+#            self.cycleno.append(self.df_raw0[j].cycle_number)
+#            if np.min(self.cycleno[j]) <= np.max(self.cycleno[j-1]):
+#                if j > 0: #corrects cycle_number except for the first data file
+#                    self.df_raw0[j].update({'cycle_number': self.cycleno[j]+np.max(self.cycleno[j-1])}) #corrects cycle number
 #            else:
 #                print('__init__ Error (#1)')
 
@@ -4025,7 +4141,7 @@ class EIS_exp:
         self.fit_E = []
         for i in range(len(self.df)):
             self.Fit.append(minimize(leastsq_errorfunc, params, method='leastsq', args=(self.df[i].w.values, self.df[i].re.values, self.df[i].im.values, circuit, weight_func), nan_policy=nan_policy, maxfev=9999990))
-            print(report_fit(self.Fit[i]))
+            #(report_fit(self.Fit[i]))
             
             self.fit_E.append(np.average(self.df[i].E_avg))
             
@@ -4115,6 +4231,15 @@ class EIS_exp:
             self.fit_fs2 = []
             self.fit_Q = []
             self.fit_Q2 = []
+            self.fiterr_Rs = []
+            self.fiterr_R = []
+            self.fiterr_n = []
+            self.fiterr_R2 = []
+            self.fiterr_n2 = []
+            self.fiterr_fs = []
+            self.fiterr_fs2 = []
+            self.fiterr_Q = []
+            self.fiterr_Q2 = []
             for i in range(len(self.df)):
                 if "'fs'" in str(self.Fit[i].params.keys()) and "'fs2'" in str(self.Fit[i].params.keys()):
                     self.circuit_fit.append(cir_RsRQRQ(w=self.df[i].w, Rs=self.Fit[i].params.get('Rs').value, R=self.Fit[i].params.get('R').value, Q='none', n=self.Fit[i].params.get('n').value, fs=self.Fit[i].params.get('fs').value, R2=self.Fit[i].params.get('R2').value, Q2='none', n2=self.Fit[i].params.get('n2').value, fs2=self.Fit[i].params.get('fs2').value))
@@ -4152,6 +4277,13 @@ class EIS_exp:
                     self.fit_R2.append(self.Fit[i].params.get('R2').value)
                     self.fit_n2.append(self.Fit[i].params.get('n2').value)
                     self.fit_Q2.append(self.Fit[i].params.get('Q2').value)
+                    self.fiterr_Rs.append(self.Fit[i].params['Rs'].stderr)
+                    self.fiterr_R.append(self.Fit[i].params.get('R').stderr)
+                    self.fiterr_n.append(self.Fit[i].params.get('n').stderr)
+                    self.fiterr_Q.append(self.Fit[i].params.get('Q').stderr)
+                    self.fiterr_R2.append(self.Fit[i].params.get('R2').stderr)
+                    self.fiterr_n2.append(self.Fit[i].params.get('n2').stderr)
+                    self.fiterr_Q2.append(self.Fit[i].params.get('Q2').stderr)
         elif circuit == 'R-RC-C':
             self.fit_Rs = []
             self.fit_R1 = []
