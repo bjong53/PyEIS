@@ -30,11 +30,11 @@ def correct_text_EIS(text_header):
     
     Kristian B. Knudsen (kknu@berkeley.edu || kristianbknudsen@gmail.com)
     '''
-    if text_header == 'freq/Hz' or text_header == '  Freq(Hz)' or text_header == 'Freq(Hz)':
+    if text_header == 'freq/Hz' or text_header == '  Freq(Hz)' or text_header == 'Freq(Hz)' or text_header == 'Freq':
         return 'f'
     elif text_header == 'Re(Z)/Ohm' or text_header == "Z'(a)" or text_header == "Z' (a)":
         return 're'
-    elif text_header == '-Im(Z)/Ohm' or text_header == "Z''(b)" or text_header == "Z'' (a)":
+    elif text_header == '-Im(Z)/Ohm' or text_header == "Z''(b)" or text_header == "Z'' (b)":
         return 'im'
 #    elif text_header == "Z''(b)":
 #        return 'im_neg'
@@ -96,7 +96,7 @@ def extract_arkeo(path, EIS_name):
     dummy_col = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I','J','K','L','M','N','O','P']
     init = pd.read_csv(path+EIS_name, encoding='latin1', sep='\t', names=dummy_col)
     ZC = pd.Index(init.A)
-    header_loc = ZC.get_loc('Freq(Hz)')
+    header_loc = 0#ZC.get_loc('Freq')
     
     header_names_raw = pd.read_csv(path+EIS_name, sep='\t', skiprows=header_loc, encoding='latin1') #locates number of skiplines
     header_names = []
