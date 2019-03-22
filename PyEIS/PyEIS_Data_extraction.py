@@ -32,6 +32,10 @@ def correct_text_EIS(text_header):
     '''
     if text_header == 'freq/Hz' or text_header == '  Freq(Hz)' or text_header == 'Freq(Hz)' or text_header == 'Freq':
         return 'f'
+    if text_header == 'V (V)':
+        return 'V'
+    if text_header == 'J (A)':
+        return 'J'
     elif text_header == 'Re(Z)/Ohm' or text_header == "Z'(a)" or text_header == "Z' (a)":
         return 're'
     elif text_header == '-Im(Z)/Ohm' or text_header == "Z''(b)" or text_header == "Z'' (b)":
@@ -103,7 +107,8 @@ def extract_arkeo(path, EIS_name):
     for j in range(len(header_names_raw.columns)):
         header_names.append(correct_text_EIS(header_names_raw.columns[j])) #reads coloumn text
     data = pd.read_csv(path+EIS_name, sep='\t', skiprows=header_loc+1, names=header_names, encoding='latin1')
-    data.update({'im': -data.im})
+    if header_names[0] == 'f':
+        data.update({'im': -data.im})
     data = data.assign(cycle_number = 1.0)
     return data
     

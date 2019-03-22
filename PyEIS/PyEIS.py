@@ -12,6 +12,7 @@ import numpy as np
 from scipy.constants import codata
 from pylab import *
 from scipy.optimize import curve_fit
+from scipy.special import lambertw
 import mpmath as mp
 from lmfit import minimize, Minimizer, Parameters, Parameter, report_fit
 #from scipy.optimize import leastsq
@@ -1216,6 +1217,20 @@ def cir_RsRQTL_1Dsolid(w, L, D, radius, Rs, R1, fs1, n1, R2, Q2, n2, R_w, n_w, R
     
     return Z_Rs + Z_RQ + Z_TL
 
+    
+def cir_diode(V, Rs, Rsh, t, J0):
+    q = 1.6021765E-19
+    k = 1.38064852E-23
+    T = 293
+    t = q/(t*k*T)
+    
+    RT = (Rs*Rsh*t)/(Rs+Rsh)
+    
+    z = RT*J0*np.exp(RT*(V/Rs+J0))
+    J = lambertw(z)/(t*Rs)-(Rsh/(Rs+Rsh)*(J0-V/Rsh))
+    
+    return J
+    
 ### Fitting Circuit Functions
 ##
 #
@@ -1646,26 +1661,19 @@ def cir_RsRQQ_fit(params, w):
     See cir_RsRQQ() for details
     '''
     Rs = params['Rs']
+    R1 = params['R1']
     Q1 = params['Q1']
     n1 = params['n1']
 
-    if str(params.keys())[10:].find("R1") == -1: #if R == 'none':
-        Q2 = params['Q2']
-        n2 = params['n2']
-        fs1 = params['fs1']
-        R2 = (1/(Q2*(2*np.pi*fs1)**n2))
     if str(params.keys())[10:].find("Q1") == -1: #elif Q == 'none':
-        R2 = params['R2']
         n2 = params['n2']
         fs1 = params['fs1']
         Q2 = (1/(R1*(2*np.pi*fs1)**n2))
     if str(params.keys())[10:].find("n1") == -1: #elif n == 'none':
-        R2 = params['R2']
         Q2 = params['Q2']
         fs1 = params['fs1']
         n2 = np.log(Q2*R1)/np.log(1/(2*np.pi*fs1))
     if str(params.keys())[10:].find("fs1") == -1: #elif fs == 'none':
-        R2 = params['R2']
         n2 = params['n2']
         Q2 = params['Q2']
     
@@ -2399,6 +2407,24 @@ def cir_RsRQTL_1Dsolid_fit(params, w):
     
     return Z_Rs + Z_RQ1 + Z_TL
 
+def cir_diode_fit(params, V):
+    Rs = params['Rs']
+    Rsh = params['Rsh']
+    t = params['t']
+    J0 = params['J0']
+
+    q = 1.6021765E-19
+    k = 1.38064852E-23
+    T = 293
+    t = q/(t*k*T)
+    
+    RT = (Rs*Rsh*t)/(Rs+Rsh)
+    
+    z = RT*J0*np.exp(RT*(V/Rs+J0))
+    J = lambertw(z)/(t*Rs)-(Rsh/(Rs+Rsh)*(J0-V/Rsh))
+    
+    return J
+    
 ### Least-Squares error function
 def leastsq_errorfunc(params, w, re, im, circuit, weight_func):
     '''
@@ -2503,8 +2529,8 @@ def leastsq_errorfunc(params, w, re, im, circuit, weight_func):
         re_fit = cir_Randles_simplified_Fit(params, w).real
         im_fit = -cir_Randles_simplified_Fit(params, w).imag
     elif circuit == 'R-RQ-W':
-        re_fit = cir_RsRQW_Fit(params, w).real
-        im_fit = -cir_RsRQW_Fit(params, w).imag
+        re_fit = cir_RsRQW_fit(params, w).real
+        im_fit = -cir_RsRQW_fit(params, w).imag
     elif circuit == 'R-(Q(RM))':
         re_fit = cir_Randles_uelectrode_fit(params, w).real
         im_fit = -cir_Randles_uelectrode_fit(params, w).imag
@@ -2547,23 +2573,43 @@ def leastsq_errorfunc(params, w, re, im, circuit, weight_func):
     elif circuit == 'R-RQ-TL1Dsolid':
         re_fit = cir_RsRQTL_1Dsolid_fit(params, w).real
         im_fit = -cir_RsRQTL_1Dsolid_fit(params, w).imag
+    elif circuit == 'Diode':
+        J_fit = cir_diode_fit(params, w).real
     else:
         print('Circuit is not defined in leastsq_errorfunc()')
-        
-    error = [(re-re_fit)**2, (im-im_fit)**2] #sum of squares
     
-    #Different Weighing options, see Lasia
-    if weight_func == 'modulus':
-        weight = [1/((re_fit**2 + im_fit**2)**(1/2)), 1/((re_fit**2 + im_fit**2)**(1/2))]
-    elif weight_func == 'proportional':
-        weight = [1/(re_fit**2), 1/(im_fit**2)]
-    elif weight_func == 'unity':
-        unity_1s = []
-        for k in range(len(re)):
-            unity_1s.append(1) #makes an array of [1]'s, so that the weighing is == 1 * sum of squres.
-        weight = [unity_1s, unity_1s]
+    if circuit == 'Diode':
+        J = re
+        error = (J-J_fit)**2 #sum of squares
+        
+        #Different Weighing options, see Lasia
+        if weight_func == 'modulus':
+            weight = 1/(J_fit**2)**(1/2)
+        elif weight_func == 'proportional':
+            weight = 1/(J_fit**2)
+        elif weight_func == 'unity':
+            unity_1s = 1
+            for k in range(len(J)):
+                unity_1s.append(1) #makes an array of [1]'s, so that the weighing is == 1 * sum of squares.
+            weight = unity_1s
+        else:
+            print('weight not defined in leastsq_errorfunc()')
+            
     else:
-        print('weight not defined in leastsq_errorfunc()')
+        error = [(re-re_fit)**2, (im-im_fit)**2] #sum of squares
+    
+        #Different Weighing options, see Lasia
+        if weight_func == 'modulus':
+            weight = [1/((re_fit**2 + im_fit**2)**(1/2)), 1/((re_fit**2 + im_fit**2)**(1/2))]
+        elif weight_func == 'proportional':
+            weight = [1/(re_fit**2), 1/(im_fit**2)]
+        elif weight_func == 'unity':
+            unity_1s = []
+            for k in range(len(re)):
+                unity_1s.append(1) #makes an array of [1]'s, so that the weighing is == 1 * sum of squres.
+            weight = [unity_1s, unity_1s]
+        else:
+            print('weight not defined in leastsq_errorfunc()')
         
     S = np.array(weight) * error #weighted sum of squares 
     return S
@@ -2646,7 +2692,9 @@ class EIS_exp:
             self.df_raw = pd.concat([self.df_raw0[0], self.df_raw0[1], self.df_raw0[2], self.df_raw0[3], self.df_raw0[4], self.df_raw0[5], self.df_raw0[6], self.df_raw0[7], self.df_raw0[8], self.df_raw0[9], self.df_raw0[10], self.df_raw0[11]], self.df_raw0[12], self.df_raw0[13], self.df_raw0[14], axis=0)
         else:
             print("Too many data files || 15 allowed")
-        self.df_raw = self.df_raw.assign(w = 2*np.pi*self.df_raw.f) #creats a new coloumn with the angular frequency
+            
+        if self.df_raw.columns.tolist()[0] == 'f':
+            self.df_raw = self.df_raw.assign(w = 2*np.pi*self.df_raw.f) #creats a new colomn with the angular frequency
 
         #Masking data to each cycle
         self.df_pre = []
@@ -2682,9 +2730,14 @@ class EIS_exp:
             self.df_limited2 = self.df_limited.mask(self.df_raw.f > mask[0])
             for i in range(len(cycle)):
                 self.df.append(self.df_limited[self.df_limited2.cycle_number == cycle[i]])
-        elif mask[0] != 'none' and mask[1] != 'none' and cycle == 'off':
+        elif mask[0] != 'none' and mask[1] != 'none' and cycle == 'off' and self.df_raw.columns.tolist()[0] == 'f':
             self.df_limited = self.df_raw.mask(self.df_raw.f < mask[1])
             self.df_limited2 = self.df_limited.mask(self.df_raw.f > mask[0])
+            for i in range(len(self.df_raw.cycle_number.unique())):
+                self.df.append(self.df_limited[self.df_limited2.cycle_number == self.df_raw.cycle_number.unique()[i]])
+        elif mask[0] != 'none' and mask[1] != 'none' and cycle == 'off' and self.df_raw.columns.tolist()[0] == 'V':
+            self.df_limited = self.df_raw.mask(self.df_raw.V < mask[0])
+            self.df_limited2 = self.df_limited.mask(self.df_raw.V > mask[1])
             for i in range(len(self.df_raw.cycle_number.unique())):
                 self.df.append(self.df_limited[self.df_limited2.cycle_number == self.df_raw.cycle_number.unique()[i]])
         else:
@@ -4388,12 +4441,25 @@ class EIS_exp:
         self.circuit_fit = []
         self.fit_E = []
         for i in range(len(self.df)):
-            self.Fit.append(minimize(leastsq_errorfunc, params, method='leastsq', args=(self.df[i].w.values, self.df[i].re.values, self.df[i].im.values, circuit, weight_func), nan_policy=nan_policy, maxfev=9999990))
-            #(report_fit(self.Fit[i]))
+            if circuit == 'Diode':
+                self.Fit.append(minimize(leastsq_errorfunc, params, method='leastsq', args=(self.df[i].V.values, self.df[i].J.values, [0], circuit, weight_func), nan_policy=nan_policy, maxfev=9999990))    
+            else:
+                self.Fit.append(minimize(leastsq_errorfunc, params, method='leastsq', args=(self.df[i].w.values, self.df[i].re.values, self.df[i].im.values, circuit, weight_func), nan_policy=nan_policy, maxfev=9999990))
+            report_fit(self.Fit[i])
             
-            self.fit_E.append(np.average(self.df[i].E_avg))
-            
-        if circuit == 'C':
+            #self.fit_E.append(np.average(self.df[i].E_avg))
+        if circuit ==  'Diode':
+            self.fit_Rs = []
+            self.fit_Rsh = []
+            self.fit_t = []
+            self.fit_J0 = []
+            for i in range(len(self.df)):
+                self.circuit_fit.append(cir_diode(V=self.df[i].V, Rs=self.Fit[i].params.get('Rs').value, Rsh=self.Fit[i].params.get('Rsh').value, t=self.Fit[i].params.get('t').value, J0=self.Fit[i].params.get('J0').value))
+                self.fit_Rs.append(self.Fit[i].params.get('Rs').value)
+                self.fit_Rsh.append(self.Fit[i].params.get('Rsh').value)
+                self.fit_t.append(self.Fit[i].params.get('t').value)
+                self.fit_J0.append(self.Fit[i].params.get('J0').value)  
+        elif circuit == 'C':
             self.fit_C = []
             for i in range(len(self.df)):
                 self.circuit_fit.append(elem_C(w=self.df[i].w, C=self.Fit[i].params.get('C').value))
@@ -4706,15 +4772,15 @@ class EIS_exp:
                 self.fit_n.append(self.Fit[i].params.get('n').value)
         elif circuit == 'R-RQ-Q':
             self.fit_Rs = []
-            self.fit_n = []
+            self.fit_n2 = []
             self.fit_R1 = []
             self.fit_n1 = []
-            self.fit_Q = []
+            self.fit_Q2 = []
             self.fit_fs1 = []
             self.fit_Q1 = []
             for i in range(len(self.df)):
                 if "'fs1'" in str(self.Fit[i].params.keys()):
-                    self.circuit_fit.append(cir_RsRQQ(w=self.df[i].w, Rs=self.Fit[i].params.get('Rs').value, R1=self.Fit[i].params.get('R1').value, Q=self.Fit[i].params.get('Q1').value, n=self.Fit[i].params.get('n2').value, Q2='none', n2=self.Fit[i].params.get('n2').value, fs1='none'))
+                    self.circuit_fit.append(cir_RsRQQ(w=self.df[i].w, Rs=self.Fit[i].params.get('Rs').value, R1=self.Fit[i].params.get('R1').value, Q1=self.Fit[i].params.get('Q1').value, n1=self.Fit[i].params.get('n1').value, Q2='none', n2=self.Fit[i].params.get('n2').value, fs1='none'))
                     self.fit_Rs.append(self.Fit[i].params.get('Rs').value)
                     self.fit_R1.append(self.Fit[i].params.get('R1').value)
                     self.fit_Q1.append(self.Fit[i].params.get('Q').value)
@@ -4722,7 +4788,7 @@ class EIS_exp:
                     self.fit_n2.append(self.Fit[i].params.get('n1').value)
                     self.fit_fs1.append(self.Fit[i].params.get('fs1').value)
                 elif "'Q1'" in str(self.Fit[i].params.keys()):
-                    self.circuit_fit.append(cir_RsRQQ(w=self.df[i].w, Rs=self.Fit[i].params.get('Rs').value, R1=self.Fit[i].params.get('R1').value, Q=self.Fit[i].params.get('Q1').value, n=self.Fit[i].params.get('n2').value, Q2=self.Fit[i].params.get('Q2').value, n2=self.Fit[i].params.get('n2').value, fs1='none'))
+                    self.circuit_fit.append(cir_RsRQQ(w=self.df[i].w, Rs=self.Fit[i].params.get('Rs').value, R1=self.Fit[i].params.get('R1').value, Q1=self.Fit[i].params.get('Q1').value, n1=self.Fit[i].params.get('n1').value, Q2=self.Fit[i].params.get('Q2').value, n2=self.Fit[i].params.get('n2').value, fs1='none'))
                     self.fit_Rs.append(self.Fit[i].params.get('Rs').value)
                     self.fit_R1.append(self.Fit[i].params.get('R1').value)
                     self.fit_Q1.append(self.Fit[i].params.get('Q1').value)
