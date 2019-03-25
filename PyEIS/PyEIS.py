@@ -2636,10 +2636,10 @@ class EIS_exp:
         Specific cycles can be extracted using this parameter, insert cycle numbers in brackets, e.g. cycle number 1,4, and 6 are wanted. cycle=[1,4,6]
         - mask: ['high frequency' , 'low frequency'], if only a high- or low-frequency is desired use 'none' for the other, e.g. maks=[10**4,'none']
     '''
-    def __init__(self, path, data, cycle='off', mask=['none','none']):
+    def __init__(self, path, data, mode='EIS', cycle='off', mask=['none','none']):
         self.df_raw0 = []
         self.cycleno = []
-        self.df_raw0.append(extract_arkeo(path=path, EIS_name=data)) #reads all datafiles
+        self.df_raw0.append(extract_arkeo(path=path, EIS_name=data, mode=mode)) #reads all datafiles
 #        for j in range(len(data)):
 #            if data[j].find(".mpt") != -1: #file is a .mpt file
 #                self.df_raw0.append(extract_mpt(path=path, EIS_name=data[j])) #reads all datafiles

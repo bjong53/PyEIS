@@ -30,7 +30,7 @@ def correct_text_EIS(text_header):
     
     Kristian B. Knudsen (kknu@berkeley.edu || kristianbknudsen@gmail.com)
     '''
-    if text_header == 'freq/Hz' or text_header == '  Freq(Hz)' or text_header == 'Freq(Hz)' or text_header == 'Freq':
+    if text_header == 'freq/Hz' or text_header == '  Freq(Hz)' or text_header == 'Freq(Hz)' or text_header == 'Freq' or text_header == 'Freq (Hz)':
         return 'f'
     if text_header == 'V (V)':
         return 'V'
@@ -91,7 +91,7 @@ def correct_text_EIS(text_header):
     else:
         return text_header
 
-def extract_arkeo(path, EIS_name):
+def extract_arkeo(path, EIS_name, mode):
     '''
     Extracting data files from Akreo's '.txt' format, columns are renamed following correct_text_EIS()
     
@@ -100,13 +100,16 @@ def extract_arkeo(path, EIS_name):
     dummy_col = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I','J','K','L','M','N','O','P']
     init = pd.read_csv(path+EIS_name, encoding='latin1', sep='\t', names=dummy_col)
     ZC = pd.Index(init.A)
-    header_loc = 0#ZC.get_loc('Freq')
+    if mode == 'EIS':
+        header_loc = 0
+    else:
+        header_loc = ZC.get_loc('V (V)')
     
     header_names_raw = pd.read_csv(path+EIS_name, sep='\t', skiprows=header_loc, encoding='latin1') #locates number of skiplines
     header_names = []
     for j in range(len(header_names_raw.columns)):
         header_names.append(correct_text_EIS(header_names_raw.columns[j])) #reads coloumn text
-    data = pd.read_csv(path+EIS_name, sep='\t', skiprows=header_loc+1, names=header_names, encoding='latin1')
+    data = pd.read_csv(path+EIS_name, sep='\t', skiprows=header_loc+2, names=header_names, encoding='latin1')
     if header_names[0] == 'f':
         data.update({'im': -data.im})
     data = data.assign(cycle_number = 1.0)
